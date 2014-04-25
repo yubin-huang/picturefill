@@ -12,10 +12,18 @@
 <div id="qunit"></div>
 
 <div id="qunit-fixture">
+
+		<!-- Ensure that the first matching source is rendered -->
 	<picture class="first-match">
 		<source srcset="../examples/images/small.jpg"></source>
 		<source srcset="../examples/images/extralarge.jpg"></source>
 		<img>
+	</picture>
+
+
+	<!--  picturefill ignores elements when they are marked with a property -->
+	<picture class="eval-once">
+		<img srcset="foo">
 	</picture>
 
 	<!-- dummy elements used as a mock pictures -->
@@ -26,28 +34,40 @@
 		</video>
 	</div>
 
-	<img src="bar" class="prop-check"/>
+	<img srcset="bar" class="prop-check"/>
 
-	<div class="pending-check">
+  <picture class="pending-check">
     <source type="foo" srcset="foo"/>
-  </div>
+    <img>
+  </picture>
 
-  <div class="match-check">
+  <picture class="match-check">
     <source srcset="foo" media="bar"/>
-  </div>
+    <img>
+  </picture>
 
-  <div class="no-match-check">
+  <picture class="no-match-check">
     <source srcset="foo" media="bar"/>
-  </div>
+    <img>
+  </picture>
 
-  <div class="no-srcset-check">
+  <picture class="no-srcset-check">
     <source media="bar"/>
-  </div>
+    <img>
+  </picture>
 
-  <div class="ignored-source-check">
+  <picture class="ignored-source-check">
     <img srcset="bar"/>
     <source srcset="foo"/>
-  </div>
+  </picture>
+
+  <picture class="parse-img-parent-pictures">
+  	<source srcset="foo"/>
+    <img srcset="bar"/>
+    <source srcset="bar"/>
+    <img srcset="baz"/>
+  </picture>
+
 </div>
 
 <script src="../src/picturefill.js"></script>

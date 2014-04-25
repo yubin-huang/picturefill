@@ -203,10 +203,10 @@
 	 * (the property's existence infers native srcset support, and a srcset-supporting browser will prioritize srcset's value over our winning picture candidate)
 	 * this moves srcset's value to memory for later use and removes the attr
 	 */
-	pf.dodgeSrcset = function( img ){
-		if( img.srcset ){
-			img[ pf.ns ].srcset = img.srcset;
-			img.removeAttribute( "srcset" );
+	pf.dodgeSrcset = function( el ){
+		if( el.srcset ){
+			el[ pf.ns ].srcset = el.srcset;
+			el.removeAttribute( "srcset" );
 		}
 	};
 
@@ -247,7 +247,7 @@
 			}
 		}
 
-		if ( !pf.endsWith( picImg.src, bestCandidate.url ) ) {
+		if ( bestCandidate && !pf.endsWith( picImg.src, bestCandidate.url ) ) {
 			picImg.src = bestCandidate.url;
 			// currentSrc attribute and property to match
 			// http://picture.responsiveimages.org/#the-img-element
@@ -280,69 +280,70 @@
 	};
 
 	/*
-	 * Find all picture elements and,
-	 * in browsers that don't natively support srcset, find all img elements
-	 * with srcset attrs that don't have picture parents
+	 * Find all img elements in the page, including any with `picture` parents
 	 */
-	pf.getAllElements = function() {
-		var pictures = doc.getElementsByTagName( "picture" ),
-			elems = [],
-			imgs = doc.getElementsByTagName( "img" );
+	pf.getAllElements = function( els ) {
+		var imgs = els || doc.getElementsByTagName( "img" ),
+			elems = {};
 
-		for ( var h = 0, len = pictures.length + imgs.length; h < len; h++ ) {
-			if ( h < pictures.length ){
-				elems[ h ] = pictures[ h ];
+		for ( var h = 0, len = imgs.length; h < len; h++ ) {
+			var img = imgs[ h ];
+
+			if ( img.nodeName.toUpperCase() === "PICTURE" ) {
+				img = img.getElementsByTagName( "img" )[ 0 ];
 			}
-			else {
-				var currImg = imgs[ h - pictures.length ];
+			var parent = img.parentNode;
 
-				if ( currImg.parentNode.nodeName.toUpperCase() !== "PICTURE" &&
-					( ( pf.srcsetSupported && currImg.getAttribute( "sizes" ) ) ||
-					currImg.getAttribute( "srcset" ) !== null ) ) {
-						elems.push( currImg );
-				}
+			if( parent.nodeName.toUpperCase() === "PICTURE" ||
+			pf.srcsetSupported && img.getAttribute( "sizes" ) ||
+			img.getAttribute( "srcset" ) !== null ) {
+				elems[ h ] = {
+					"picture" : parent,
+					"img" : img
+				};
 			}
 		}
 		return elems;
 	};
 
-	pf.getMatch = function( picture ) {
-		var sources = picture.childNodes,
+	pf.getMatch = function( pictureData ) {
+		var sources = pictureData.picture.childNodes,
 			match;
 
 		// Go through each child, and if they have media queries, evaluate them
 		for ( var j=0, slen = sources.length; j < slen; j++ ) {
-			var source = sources[ j ];
+			var potentialSource = sources[ j ];
 
 			// ignore non-element nodes
-			if( source.nodeType !== 1 ){
+			if( potentialSource.nodeType !== 1 ){
 				continue;
 			}
 
-			// Hitting an `img` element stops the search for `sources`.
-			// If no previous `source` matches, the `img` itself is evaluated later.
-			if( source.nodeName.toUpperCase() === "IMG" ) {
+			// Hitting the `img` element that invoked processing of `picture` stops 
+			// the search for `sources`. If no `source` matches, the `img` itself is 
+			// evaluated later.
+			if( potentialSource === pictureData.img ) {
 				return match;
 			}
 
 			// ignore non-`source` nodes
-			if( source.nodeName.toUpperCase() !== "SOURCE" ){
+			if( potentialSource.nodeName.toUpperCase() !== "SOURCE" ){
 				continue;
 			}
 
-			var media = source.getAttribute( "media" );
+			var media = potentialSource.getAttribute( "media" );
 
 			// if source does not have a srcset attribute, skip
-			if ( !source.getAttribute( "srcset" ) ) {
+			if ( !potentialSource.getAttribute( "srcset" ) ) {
 				continue;
 			}
 
 			// if there"s no media specified, OR w.matchMedia is supported
 			if( ( !media || pf.matchesMedia( media ) ) ){
-				var typeSupported = pf.verifyTypeSupport( source );
+				var typeSupported = pf.verifyTypeSupport( potentialSource );
 
 				if( typeSupported === true ){
-					match = source;
+					match = potentialSource;
 					break;
 				} else if( typeSupported === "pending" ){
 					return false;
@@ -356,44 +357,44 @@
 	function picturefill( options ) {
 		var elements,
 			element,
-			elemType,
+			elementData,
 			firstMatch,
-			candidates,
-			picImg;
+			candidates;
 
 		options = options || {};
-		elements = options.elements || pf.getAllElements();
+		elements = pf.getAllElements( options.elements );
 
 		// Loop through all elements
-		for ( var i=0, plen = elements.length; i < plen; i++ ) {
-			element = elements[ i ];
-			elemType = element.nodeName.toUpperCase();
+		for ( var k in elements ) {
+			if ( !elements.hasOwnProperty( k ) ) {
+				break;
+			}
+
+			elementData = elements[ k ];
+			element = elementData.picture.nodeName.toUpperCase() === "PICTURE" ? elementData.picture : elementData.img;
 			firstMatch = undefined;
 			candidates = undefined;
-			picImg = undefined;
 
 			// expando for caching data on the img
-			if( !element[ pf.ns ] ){
-				element[ pf.ns ] = {};
+			if( !elementData.img[ pf.ns ] ){
+				elementData.img[ pf.ns ] = {};
 			}
 
 			// if the element has already been evaluated, skip it
 			// unless `options.force` is set to true ( this, for example,
 			// is set to true when running `picturefill` on `resize` ).
-			if ( !options.reevaluate && element[ pf.ns ].evaluated ) {
+			if ( !options.reevaluate && ( elementData.img[ pf.ns ] && elementData.img[ pf.ns ].evaluated ) ) {
 				continue;
 			}
 
-			// if element is a picture element
-			if( elemType === "PICTURE" ){
-
+			if( element.nodeName.toUpperCase() === "PICTURE" ){
 				// IE9 video workaround
 				pf.removeVideoShim( element );
 
 				// return the first match which might undefined
 				// returns false if there is a pending source
 				// TODO the return type here is brutal, cleanup
-				firstMatch = pf.getMatch( element );
+				firstMatch = pf.getMatch( elementData );
 
 				// if any sources are pending in this picture due to async type test(s)
 				// remove the evaluated attr and skip for now ( the pending test will
@@ -401,43 +402,25 @@
 				if( firstMatch === false ) {
 					continue;
 				}
-
-				// Find any existing img element in the picture element
-				picImg = element.getElementsByTagName( "img" )[ 0 ];
-			} else {
-				// if it's an img element
-				firstMatch = undefined;
-				picImg = element;
 			}
 
-			if( picImg ) {
+			// expando for caching data on the element
+			if( !elementData.img[ pf.ns ] ){
+				elementData.img[ pf.ns ] = {};
+			}
 
-				// expando for caching data on the img
-				if( !picImg[ pf.ns ] ){
-					picImg[ pf.ns ] = {};
-				}
-
-				if( picImg.srcset ){
+			if( elementData.img ) {
+				if( firstMatch && elementData.img.srcset ){
 					// cache and remove srcset if present
-					pf.dodgeSrcset( picImg );
+					pf.dodgeSrcset( elementData.img );
 				}
 
-				if ( firstMatch ) {
-					candidates = pf.processSourceSet( firstMatch );
-					pf.applyBestCandidate( candidates, picImg );
-				} else {
-					// No sources matched, so we’re down to processing the inner `img` as a source.
-					candidates = pf.processSourceSet( picImg );
-
-					if( picImg.srcset === undefined || picImg.getAttribute( "sizes" ) ) {
-						// Either `srcset` is completely unsupported, or we need to polyfill `sizes` functionality.
-						pf.applyBestCandidate( candidates, picImg );
-					} // Else, resolution-only `srcset` is supported natively.
-				}
-
-				// set evaluated to true to avoid unnecessary reparsing
-				element[ pf.ns ].evaluated = true;
+				candidates = pf.processSourceSet( firstMatch ? firstMatch : elementData.img );
+				pf.applyBestCandidate( candidates, elementData.img );
 			}
+
+			// set evaluated to true to avoid unnecessary reparsing
+			elementData.img[ pf.ns ].evaluated = true;
 		}
 	}
 

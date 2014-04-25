@@ -225,9 +225,7 @@
 			}
 		}));
 
-		pf.types[ "foo" ] = function() {
-			ok( true, "foo type function executed" );
-		};
+
 
 		pf.verifyTypeSupport({
 			getAttribute: function() {
@@ -307,15 +305,16 @@
 			return false;
 		};
 
-		var $noMatch = $( ".no-match-check ");
+		var noMatch = pf.getAllElements( document.querySelector( ".no-match-check ") );
 
-		equal( pf.getMatch( $noMatch[0] ), undefined );
+		equal( pf.getMatch( noMatch ), undefined );
 	});
 
 	test( "getMatch returns undefined when no srcset is found", function() {
-		var $noSrcset = $( ".no-srcset-check ");
+		var noSrcset = pf.getAllElements( document.querySelector( ".no-srcset-check" ) );
 
-		equal( pf.getMatch( $noSrcset[0] ), undefined );
+		console.log( noSrcset );
+		equal( pf.getMatch( noSrcset ), undefined );
 	});
 
 	test( "getMatch returns only sources preceding fallback img", function() {
@@ -329,14 +328,11 @@
 		equal( pf.getMatch( $ignoredSource[0] ), undefined, "no source found" );
 	});
 
-	test( "picturefill ignores elements when they are marked with a property", function() {
+	test( "picturefill marks `picture` elements with a property; enhances it once", function() {
 		expect( 0 );
 
-		var mockPicture = {
-			nodeName: "PICTURE"
-		};
-
-		mockPicture[ pf.ns ] = {
+		var pic = document.querySelector( ".eval-once" );
+		pic[ pf.ns ] = {
 			evaluated: true
 		};
 
@@ -344,10 +340,11 @@
 			ok( false );
 		};
 
-		picturefill({ reevaluate: false, elements: [mockPicture] });
+		picturefill({ reevaluate: false, elements: [pic] });
 	});
 
-	test( "picturefill marks elements with a property", function() {
+	test( "picturefill marks `img` elements with a property; enhances it once", function() {
+		expect( 1 );
 		// NOTE requires at least one child image for the propery to be set
 		var mockPicture = $( ".prop-check" )[0];
 
