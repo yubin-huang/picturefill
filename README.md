@@ -52,3 +52,5 @@ Picturefill discussion takes place via Slack. For an invitation, visit [https://
 ## Support
 
 Picturefill supports a broad range of browsers and devices (there are currently no known unsupported browsers), provided that you stick with the markup conventions provided.
+
+#响应式图片
